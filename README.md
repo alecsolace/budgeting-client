@@ -1,2 +1,8 @@
-# budgeting-client
-Client for the budgeting app. Consumes the shared ASP.NET Core API.
+# Budgeting Client
+
+Frontend client consuming the Budgeting API.
+
+## Scope (MVP)
+- List accounts
+- Create transaction
+- View monthly summary
