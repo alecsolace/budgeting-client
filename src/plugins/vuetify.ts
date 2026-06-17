@@ -1,8 +1,7 @@
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
 import { createVuetify } from 'vuetify'
-import * as components from 'vuetify/components'
-import * as directives from 'vuetify/directives'
+import { Ripple } from 'vuetify/directives'
 
 const luneLight = {
   dark: false,
@@ -51,8 +50,7 @@ const luneDark = {
 }
 
 export default createVuetify({
-  components,
-  directives,
+  directives: { Ripple },
   theme: {
     defaultTheme: 'luneLight',
     themes: { luneLight, luneDark },

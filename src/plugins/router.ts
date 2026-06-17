@@ -1,17 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import WeeklyLog from '../views/WeeklyLog.vue'
-import Login from '../views/Login.vue'
 
 const routes = [
   {
     path: '/',
-    component: WeeklyLog,
+    component: () => import('../views/WeeklyLog.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/login',
-    component: Login,
+    component: () => import('../views/Login.vue'),
   },
 ]
 
