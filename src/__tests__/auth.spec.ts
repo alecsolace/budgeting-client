@@ -16,4 +16,16 @@ describe('useAuthStore', () => {
     const store = useAuthStore()
     expect(store.user).toBeNull()
   })
+
+  it('isAuthenticated can be mutated to false', () => {
+    const store = useAuthStore()
+    store.isAuthenticated = false
+    expect(store.isAuthenticated).toBe(false)
+  })
+
+  it('user can be set to a user object', () => {
+    const store = useAuthStore()
+    store.user = { id: '1', email: 'test@example.com' }
+    expect(store.user).toEqual({ id: '1', email: 'test@example.com' })
+  })
 })

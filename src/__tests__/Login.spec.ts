@@ -14,4 +14,11 @@ describe('Login', () => {
     })
     expect(wrapper.exists()).toBe(true)
   })
+
+  it('renders "Sign in" heading', () => {
+    const wrapper = mount(Login, {
+      global: { plugins: [vuetify] },
+    })
+    expect(wrapper.text()).toContain('Sign in')
+  })
 })

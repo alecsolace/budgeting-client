@@ -14,4 +14,11 @@ describe('WeeklyLog', () => {
     })
     expect(wrapper.exists()).toBe(true)
   })
+
+  it('renders "Weekly Log" heading', () => {
+    const wrapper = mount(WeeklyLog, {
+      global: { plugins: [vuetify] },
+    })
+    expect(wrapper.text()).toContain('Weekly Log')
+  })
 })
