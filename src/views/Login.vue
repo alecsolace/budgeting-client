@@ -1,7 +1,7 @@
 <template>
   <v-container
     class="login"
-    :max-width="640"
+    :max-width="CONTENT_MAX_WIDTH"
   >
     <h1 class="text-week-title">
       Sign in
@@ -10,6 +10,7 @@
 </template>
 
 <script setup lang="ts">
+import { CONTENT_MAX_WIDTH } from '../constants/layout'
 // Login — placeholder route target only. Supabase auth wired here later.
 </script>
 
