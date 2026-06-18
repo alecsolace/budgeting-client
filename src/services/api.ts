@@ -5,5 +5,3 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Placeholder: attach auth token when Supabase is wired
-api.interceptors.request.use((config) => config)
