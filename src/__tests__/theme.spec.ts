@@ -66,6 +66,14 @@ describe('luneDark', () => {
     expect(contrast(dark.variables['text-muted'] as string, dark.colors.background)).toBeGreaterThanOrEqual(4.5)
   })
 
+  it('gives input borders at least the 3:1 required of UI component boundaries', () => {
+    // Measured against surface-raised, which is what input fields sit on —
+    // the lightest of the three dark grounds, so the hardest case to clear.
+    expect(
+      contrast(dark.variables['border-input'] as string, dark.variables['surface-raised'] as string)
+    ).toBeGreaterThanOrEqual(3)
+  })
+
   it('no longer reuses the light-mode wine for errors', () => {
     expect(dark.colors.error).not.toBe('#9B4444')
     expect(contrast(dark.colors.error, dark.colors.background)).toBeGreaterThanOrEqual(4.5)

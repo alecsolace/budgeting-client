@@ -69,7 +69,9 @@ const luneDark = {
     'error-soft': '#2E1E1E',
     border: '#38321E',
     'border-strong': '#4A4030',
-    'border-input': '#6E6152',
+    // Input outlines are non-text UI boundaries, so WCAG 1.4.11 wants 3:1.
+    // #6E6152 was only 2.38:1 against surface-raised #2E2A22; #8A7C64 gives 3.50:1.
+    'border-input': '#8A7C64',
   },
 }
 
