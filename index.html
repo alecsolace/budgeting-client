@@ -10,12 +10,16 @@
       as="style"
       href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap"
     />
+    <!-- media="print" keeps this off the critical path; /font-loading.js flips
+         it to "all". No inline onload handler — that would require
+         'unsafe-inline' in script-src. -->
     <link
+      data-font-deferred
       href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap"
       rel="stylesheet"
       media="print"
-      onload="this.media='all'"
     />
+    <script src="/font-loading.js" defer></script>
     <noscript>
       <link
         href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap"
