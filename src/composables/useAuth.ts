@@ -1,11 +1,16 @@
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '../stores/auth'
 
 export function useAuth() {
   const authStore = useAuthStore()
+  const { session, user, isAuthenticated } = storeToRefs(authStore)
 
   return {
-    isAuthenticated: authStore.isAuthenticated,
-    user: authStore.user,
-    // Swap Supabase session check here when wiring auth
+    session,
+    user,
+    isAuthenticated,
+    initialize: authStore.initialize,
+    signIn: authStore.signIn,
+    signOut: authStore.signOut,
   }
 }
