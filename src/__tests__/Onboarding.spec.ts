@@ -17,8 +17,7 @@ vi.mock('../services/committedExpenses', async (importOriginal) => ({
 }))
 
 import Onboarding from '../views/Onboarding.vue'
-import CommittedExpenseRow from '../components/CommittedExpenseRow.vue'
-import { createCommittedExpense, type CommittedExpenseDraft } from '../services/committedExpenses'
+import { createCommittedExpense, type CommittedExpense } from '../services/committedExpenses'
 
 const vuetify = createVuetify({ components, directives })
 const createMock = vi.mocked(createCommittedExpense)
@@ -31,120 +30,214 @@ beforeAll(() => {
   }
 })
 
+function created(overrides: Partial<CommittedExpense> = {}): CommittedExpense {
+  return {
+    id: 'srv-1',
+    name: 'Rent',
+    amount: 1200,
+    currency: 'USD',
+    frequency: 'monthly',
+    category: 'housing',
+    active: true,
+    ...overrides,
+  }
+}
+
 beforeEach(() => {
   setActivePinia(createPinia())
   push.mockReset()
-  createMock.mockReset()
-  createMock.mockResolvedValue({
-    id: 'srv-id',
-    name: '',
-    amount: 0,
-    currency: 'USD',
-    frequency: 'monthly',
-    category: 'other',
-    active: true,
-  })
+  createMock.mockReset().mockResolvedValue(created())
 })
 
 function mountOnboarding() {
   return mount(Onboarding, { global: { plugins: [vuetify] } })
 }
 
-function setRow(wrapper: ReturnType<typeof mountOnboarding>, index: number, draft: Partial<CommittedExpenseDraft>) {
-  const rows = wrapper.findAllComponents(CommittedExpenseRow)
-  rows[index].vm.$emit('update:modelValue', {
-    name: '',
-    amount: 0,
-    frequency: 'monthly',
-    category: 'other',
-    ...draft,
-  })
+type Wrapper = ReturnType<typeof mountOnboarding>
+
+/**
+ * Enter one expense through the open line, the way a person does.
+ * Deliberately goes through the DOM rather than component internals so this
+ * keeps working if the entry line is restructured again.
+ */
+async function enter(wrapper: Wrapper, name: string, amount: string) {
+  await wrapper.get('#onboarding-name').setValue(name)
+  await wrapper.get('#onboarding-amount').setValue(amount)
+  await wrapper.get('#onboarding-amount').trigger('blur')
+  await flushPromises()
+}
+
+/** Press the terminal action by its accessible name, not by form shape. */
+async function finishSetup(wrapper: Wrapper) {
+  await wrapper.get('form').trigger('submit')
+  await flushPromises()
+}
+
+function chipNamed(wrapper: Wrapper, label: string) {
+  const chip = wrapper
+    .findAll('button')
+    .find((button) => button.text().trim() === label)
+  if (!chip) throw new Error(`no chip labelled "${label}"`)
+  return chip
 }
 
 describe('Onboarding', () => {
-  it('renders three empty rows on mount', () => {
-    expect(mountOnboarding().findAllComponents(CommittedExpenseRow)).toHaveLength(3)
-  })
-
-  it('on submit, skips empty rows and POSTs once per fully-filled row', async () => {
+  it('offers a way to start entering an expense with no prior interaction', () => {
     const wrapper = mountOnboarding()
 
-    setRow(wrapper, 0, { name: 'Rent', amount: 1200 })
-    setRow(wrapper, 1, { name: 'Spotify', amount: 11.99 })
-    // row 2 left empty
-    await flushPromises()
+    // Whatever the flow, arriving must not require a preceding step.
+    expect(wrapper.find('#onboarding-name').exists()).toBe(true)
+    expect(wrapper.find('#onboarding-amount').exists()).toBe(true)
+  })
 
-    await wrapper.find('form').trigger('submit')
-    await flushPromises()
+  it('creates one record per completed entry and skips what was left blank', async () => {
+    const wrapper = mountOnboarding()
+
+    await enter(wrapper, 'Rent', '1200')
+    await enter(wrapper, 'Spotify', '11.99')
+    // A third entry is started and abandoned — it must not be saved.
+    await wrapper.get('#onboarding-name').setValue('')
+
+    await finishSetup(wrapper)
 
     expect(createMock).toHaveBeenCalledTimes(2)
     expect(createMock).toHaveBeenCalledWith(expect.objectContaining({ name: 'Rent', amount: 1200 }))
-    expect(createMock).toHaveBeenCalledWith(expect.objectContaining({ name: 'Spotify', amount: 11.99 }))
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Spotify', amount: 11.99 }),
+    )
     expect(push).toHaveBeenCalledWith('/')
   })
 
-  it('blocks submission and flags the missing field when a row is half-filled', async () => {
+  it('blocks and explains when an amount was entered with no name', async () => {
     const wrapper = mountOnboarding()
 
-    setRow(wrapper, 0, { name: 'Rent', amount: 0 })
+    await wrapper.get('#onboarding-amount').setValue('40')
+    await wrapper.get('#onboarding-amount').trigger('blur')
     await flushPromises()
 
-    await wrapper.find('form').trigger('submit')
-    await flushPromises()
+    await finishSetup(wrapper)
 
     expect(createMock).not.toHaveBeenCalled()
     expect(push).not.toHaveBeenCalled()
-    expect(wrapper.findAllComponents(CommittedExpenseRow)[0].props('invalidFields')).toContain('amount')
+    expect(wrapper.text()).toContain('What should we call this one?')
   })
 
-  it('lets a user skip setup entirely — no rows, straight to the weekly log', async () => {
+  it('lets a person skip setup entirely — that is an allowed outcome', async () => {
     const wrapper = mountOnboarding()
 
-    await wrapper.find('form').trigger('submit')
-    await flushPromises()
+    await finishSetup(wrapper)
 
     expect(createMock).not.toHaveBeenCalled()
     expect(push).toHaveBeenCalledWith('/')
   })
 
-  it('does not duplicate successful rows when one parallel POST fails and the user retries', async () => {
+  it('on a partial failure keeps what was entered and retries only the failed row', async () => {
     const wrapper = mountOnboarding()
-    setRow(wrapper, 0, { name: 'Rent', amount: 1200 })
-    setRow(wrapper, 1, { name: 'Gym', amount: 40 })
-    await flushPromises()
+    await enter(wrapper, 'Rent', '1200')
+    await enter(wrapper, 'Gym', '40')
 
+    createMock.mockReset()
     createMock
-      .mockResolvedValueOnce({
-        id: 'rent-id',
-        name: 'Rent',
-        amount: 1200,
-        currency: 'USD',
-        frequency: 'monthly',
-        category: 'other',
-        active: true,
-      })
+      .mockResolvedValueOnce(created({ name: 'Rent' }))
       .mockRejectedValueOnce(new Error('offline'))
 
-    await wrapper.find('form').trigger('submit')
-    await flushPromises()
+    await finishSetup(wrapper)
 
     expect(createMock).toHaveBeenCalledTimes(2)
     expect(push).not.toHaveBeenCalled()
+    // Nothing the person typed is discarded.
+    expect(wrapper.text()).toContain('we kept what you entered')
+    expect(wrapper.text()).toContain('Rent')
+    expect(wrapper.text()).toContain('Gym')
 
-    createMock.mockResolvedValue({
-      id: 'gym-id',
-      name: 'Gym',
-      amount: 40,
-      currency: 'USD',
-      frequency: 'monthly',
-      category: 'other',
-      active: true,
-    })
-    await wrapper.find('form').trigger('submit')
-    await flushPromises()
+    createMock.mockResolvedValue(created({ name: 'Gym' }))
+    await finishSetup(wrapper)
 
+    // Three calls total: Rent is not sent a second time.
     expect(createMock).toHaveBeenCalledTimes(3)
     expect(createMock).toHaveBeenLastCalledWith(expect.objectContaining({ name: 'Gym' }))
     expect(push).toHaveBeenCalledWith('/')
+  })
+
+  it('a preset chip fills the name and carries its category, so only the amount is typed', async () => {
+    const wrapper = mountOnboarding()
+
+    await chipNamed(wrapper, 'Netflix').trigger('click')
+    await flushPromises()
+
+    expect((wrapper.get('#onboarding-name').element as HTMLInputElement).value).toBe('Netflix')
+
+    await wrapper.get('#onboarding-amount').setValue('11.99')
+    await wrapper.get('#onboarding-amount').trigger('blur')
+    await finishSetup(wrapper)
+
+    // Category rides along from the preset. Left to choose it themselves,
+    // people leave every row on "other" and the taxonomy collapses.
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Netflix', amount: 11.99, category: 'subscription' }),
+    )
+  })
+
+  it('tapping a chip mid-entry banks what was already typed instead of discarding it', async () => {
+    const wrapper = mountOnboarding()
+
+    await wrapper.get('#onboarding-name').setValue('Council tax')
+    await wrapper.get('#onboarding-amount').setValue('180')
+
+    await chipNamed(wrapper, 'Rent').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Council tax')
+    expect((wrapper.get('#onboarding-name').element as HTMLInputElement).value).toBe('Rent')
+  })
+
+  it('can be completed with the keyboard alone', async () => {
+    const wrapper = mountOnboarding()
+
+    await wrapper.get('#onboarding-name').setValue('Rent')
+    await wrapper.get('#onboarding-amount').setValue('1200')
+    // Enter commits the line without reaching for a mouse.
+    await wrapper.get('#onboarding-amount').trigger('keydown.enter')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Rent')
+
+    await finishSetup(wrapper)
+    expect(createMock).toHaveBeenCalledWith(expect.objectContaining({ name: 'Rent' }))
+    expect(push).toHaveBeenCalledWith('/')
+  })
+
+  it('keeps the finish action reachable at every point, including before anything is entered', async () => {
+    const wrapper = mountOnboarding()
+
+    const cta = wrapper.get('button[type="submit"]')
+    expect(cta.attributes('disabled')).toBeUndefined()
+    expect(cta.text()).toContain('Skip for now')
+
+    await enter(wrapper, 'Rent', '1200')
+    expect(wrapper.get('button[type="submit"]').text()).toContain("That's everything")
+  })
+
+  it('shows a running weekly total once something is on the list', async () => {
+    const wrapper = mountOnboarding()
+    expect(wrapper.text()).not.toContain('a week so far')
+
+    await enter(wrapper, 'Rent', '1200')
+
+    // 1200 / 4.33 = 277.13…
+    expect(wrapper.text()).toContain('$277.14 a week so far')
+  })
+
+  it('removes a settled row when asked, and stops counting it', async () => {
+    const wrapper = mountOnboarding()
+    await enter(wrapper, 'Rent', '1200')
+    expect(wrapper.text()).toContain('Rent')
+
+    await wrapper.get('button[aria-label="Remove Rent"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('a week so far')
+    await finishSetup(wrapper)
+    expect(createMock).not.toHaveBeenCalled()
   })
 })
