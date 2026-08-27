@@ -61,13 +61,25 @@ describe('AuthCallback', () => {
     expect(authMock.getSession).toHaveBeenCalledTimes(1)
   })
 
+  it('verifies a token hash from the custom email template', async () => {
+    await mountCallbackAt('?redirect=%2Fsummary%2F2026-08-24&token_hash=one-time-token&type=email')
+
+    expect(authMock.verifyOtp).toHaveBeenCalledWith({
+      token_hash: 'one-time-token',
+      type: 'email',
+    })
+    expect(authMock.getSession).not.toHaveBeenCalled()
+  })
+
   it('strips the query string from the URL and the back-stack', async () => {
-    const { replaceStateSpy } = await mountCallbackAt('?code=one-time-code')
+    const { replaceStateSpy } = await mountCallbackAt(
+      '?redirect=%2F&token_hash=one-time-token&type=email',
+    )
 
     expect(replaceStateSpy).toHaveBeenCalled()
     // First call is ours, before any router navigation touches history.
     expect(replaceStateSpy.mock.calls[0][2]).toBe('/auth/callback')
-    expect(String(replaceStateSpy.mock.calls[0][2])).not.toContain('code=')
+    expect(String(replaceStateSpy.mock.calls[0][2])).not.toContain('token_hash=')
   })
 
   it('uses replace(), not push(), so the callback never enters history', async () => {

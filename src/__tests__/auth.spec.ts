@@ -77,7 +77,7 @@ describe('useAuthStore', () => {
       email: 'sam@example.com',
       options: {
         shouldCreateUser: true,
-        emailRedirectTo: 'http://localhost:5173/auth/callback',
+        emailRedirectTo: 'http://localhost:5173/auth/callback?redirect=%2F',
       },
     })
   })
@@ -104,10 +104,35 @@ describe('useAuthStore', () => {
       email: 'sam@example.com',
       options: {
         shouldCreateUser: true,
-        // No ?redirect= — sanitizeRedirect collapsed it to '/', the default.
-        emailRedirectTo: 'http://localhost:5173/auth/callback',
+        // The safe default is carried explicitly, so email templates can
+        // safely append the one-time token hash.
+        emailRedirectTo: 'http://localhost:5173/auth/callback?redirect=%2F',
       },
     })
+  })
+
+  it('verifies a token hash and stores the resulting session', async () => {
+    const store = useAuthStore()
+    const session = fakeSession()
+    authMock.verifyOtp.mockResolvedValue({ data: { session }, error: null })
+
+    await store.verifyMagicLink('one-time-token-hash')
+
+    expect(authMock.verifyOtp).toHaveBeenCalledWith({
+      token_hash: 'one-time-token-hash',
+      type: 'email',
+    })
+    expect(store.isAuthenticated).toBe(true)
+    expect(store.user).toEqual(session.user)
+  })
+
+  it('rethrows a failed token verification', async () => {
+    const store = useAuthStore()
+    const error = new Error('expired link')
+    authMock.verifyOtp.mockResolvedValue({ data: { session: null }, error })
+
+    await expect(store.verifyMagicLink('expired-token-hash')).rejects.toBe(error)
+    expect(store.isAuthenticated).toBe(false)
   })
 
   it('signIn rethrows the provider error so the view can classify it', async () => {

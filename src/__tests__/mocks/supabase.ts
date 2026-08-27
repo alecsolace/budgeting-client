@@ -13,6 +13,7 @@ export const authMock = {
   getSession: vi.fn(),
   onAuthStateChange: vi.fn(),
   signInWithOtp: vi.fn(),
+  verifyOtp: vi.fn(),
   signOut: vi.fn(),
 }
 
@@ -37,6 +38,7 @@ export function resetSupabaseMock() {
   authMock.getSession.mockReset()
   authMock.onAuthStateChange.mockReset()
   authMock.signInWithOtp.mockReset()
+  authMock.verifyOtp.mockReset()
   authMock.signOut.mockReset()
 
   authMock.getSession.mockResolvedValue({ data: { session: null }, error: null })
@@ -45,6 +47,7 @@ export function resetSupabaseMock() {
     return { data: { subscription: { unsubscribe: vi.fn() } } }
   })
   authMock.signInWithOtp.mockResolvedValue({ data: {}, error: null })
+  authMock.verifyOtp.mockResolvedValue({ data: { session: fakeSession() }, error: null })
   authMock.signOut.mockResolvedValue({ error: null })
 }
 
