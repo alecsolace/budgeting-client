@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Confirm your email — Lune</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#F5F0E8;color:#2C2416;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#F5F0E8;">
+      <tr>
+        <td align="center" style="padding:48px 20px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background-color:#FDFAF4;border:1px solid #E2D9CC;border-radius:12px;">
+            <tr>
+              <td style="padding:40px 40px 8px;font-family:Georgia,'Times New Roman',serif;font-size:30px;line-height:36px;color:#2C2416;">
+                Lune
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 40px 8px;font-family:Georgia,'Times New Roman',serif;font-size:30px;font-weight:normal;line-height:38px;color:#2C2416;">
+                One small step,<br />then you’re in.
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:12px 40px 0;font-family:Arial,'DM Sans',sans-serif;font-size:16px;line-height:25px;color:#736353;">
+                Confirm your email and start your weekly check-in — gently, and on your own terms.
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px 40px 36px;">
+                <a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email" style="display:inline-block;background-color:#A8623A;border-radius:8px;color:#FFFFFF;font-family:Arial,'DM Sans',sans-serif;font-size:16px;font-weight:600;line-height:20px;padding:14px 22px;text-align:center;text-decoration:none;">
+                  Confirm &amp; sign in
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td style="border-top:1px solid #E2D9CC;padding:20px 40px 32px;font-family:Arial,'DM Sans',sans-serif;font-size:13px;line-height:20px;color:#736353;">
+                This link is personal and expires soon. If you didn’t ask to join Lune, you can safely ignore this email.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

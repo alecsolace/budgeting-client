@@ -42,7 +42,9 @@ export const useAuthStore = defineStore('auth', () => {
     const normalizedEmail = email.trim().toLowerCase()
     const siteUrl = import.meta.env.VITE_PUBLIC_SITE_URL || window.location.origin
     const target = sanitizeRedirect(redirect)
-    const callbackUrl = `${siteUrl}/auth/callback${target === '/' ? '' : `?redirect=${encodeURIComponent(target)}`}`
+    // Always include a query string. The hosted Supabase email templates append
+    // the one-time token hash to this URL for the PKCE-safe callback flow.
+    const callbackUrl = `${siteUrl}/auth/callback?redirect=${encodeURIComponent(target)}`
 
     const { error } = await supabase.auth.signInWithOtp({
       email: normalizedEmail,
@@ -55,6 +57,27 @@ export const useAuthStore = defineStore('auth', () => {
     if (error) {
       throw error
     }
+  }
+
+  /**
+   * Completes the token-hash flow sent by the hosted Auth email templates.
+   * `verifyOtp` both confirms a new address and creates the local session, so
+   * the first link a person receives is also their sign-in link.
+   */
+  async function verifyMagicLink(tokenHash: string): Promise<void> {
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: 'email',
+    })
+
+    if (error) {
+      throw error
+    }
+
+    // onAuthStateChange normally makes this assignment. Keep the state in
+    // sync here too so the router can immediately admit the destination.
+    session.value = data.session
+    user.value = data.session?.user ?? null
   }
 
   async function signOut(): Promise<void> {
@@ -70,6 +93,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     initialize,
     signIn,
+    verifyMagicLink,
     signOut,
   }
 })
