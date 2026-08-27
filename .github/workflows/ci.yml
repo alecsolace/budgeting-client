@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      # Type errors and lint failures are cheaper to see than a failing test,
+      # so run them first — but don't short-circuit the suite on style alone.
+      - run: npx vue-tsc --noEmit
+      - run: npm run lint
+      - run: npm run test
+
+      # The CSP meta tag is injected at build time only (see vite.config.ts),
+      # so a build is the only place a policy regression can surface.
+      - run: npm run build

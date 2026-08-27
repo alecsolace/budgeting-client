@@ -35,7 +35,7 @@
           type="submit"
           color="cta"
           block
-          class="text-button lune-login__cta"
+          class="lune-button lune-login__cta"
           :disabled="!canSubmit"
           :loading="sending"
           :aria-busy="sending ? 'true' : 'false'"
@@ -189,7 +189,7 @@ onBeforeUnmount(stopCooldown)
 
 .lune-login__subtitle {
   margin-top: var(--space-sm);
-  color: var(--v-text-muted);
+  color: var(--lune-text-muted);
 }
 
 .lune-login__form {
@@ -205,7 +205,7 @@ onBeforeUnmount(stopCooldown)
 .lune-login__form :deep(.v-field__outline) {
   --v-field-border-opacity: 1;
 
-  color: var(--v-border-input);
+  color: var(--lune-border-input);
 }
 
 .lune-login__cta {

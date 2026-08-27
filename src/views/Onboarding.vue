@@ -15,7 +15,7 @@
         @update:model-value="clearErrors(index)"
       />
 
-      <button type="button" class="onboarding__add text-button" @click="addRow">
+      <button type="button" class="lune-add-row onboarding__add lune-button" @click="addRow">
         + Add another
       </button>
 
@@ -27,7 +27,7 @@
         type="submit"
         color="cta"
         block
-        class="text-button onboarding__cta"
+        class="lune-button onboarding__cta"
         :loading="saving"
         :aria-busy="saving ? 'true' : 'false'"
       >
@@ -175,33 +175,16 @@ async function submit() {
 
 .onboarding__intro {
   margin-top: var(--space-md);
-  color: var(--v-text-muted);
+  color: var(--lune-text-muted);
 }
 
 .onboarding__form {
   margin-top: var(--space-xl);
 }
 
+/* Shape comes from `.lune-add-row` in patterns.css. */
 .onboarding__add {
-  width: 100%;
-  padding: var(--space-md);
   margin-top: var(--space-sm);
-  color: var(--v-text-muted);
-  text-align: left;
-  background: transparent;
-  border: 1px dashed var(--v-border, #e2d9cc);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: border-color var(--duration-short) var(--ease-move);
-}
-
-.onboarding__add:hover {
-  border-color: var(--v-border-strong, #c8b8a4);
-}
-
-.onboarding__add:focus-visible {
-  outline: 2px solid rgb(var(--v-theme-primary));
-  outline-offset: 2px;
 }
 
 .onboarding__status {

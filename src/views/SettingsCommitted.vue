@@ -29,7 +29,7 @@
       </p>
     </div>
 
-    <button type="button" class="settings-committed__add text-button" @click="addRow">
+    <button type="button" class="lune-add-row settings-committed__add lune-button" @click="addRow">
       + Add expense
     </button>
   </v-container>
@@ -224,7 +224,7 @@ async function handleDelete(index: number) {
   display: inline-block;
   margin-bottom: var(--space-lg);
   font-size: 14px;
-  color: var(--v-text-muted);
+  color: var(--lune-text-muted);
   text-decoration: none;
 }
 
@@ -234,7 +234,7 @@ async function handleDelete(index: number) {
 
 .settings-committed__subtext {
   margin-top: var(--space-xs);
-  color: var(--v-text-muted);
+  color: var(--lune-text-muted);
 }
 
 .settings-committed__status {
@@ -252,28 +252,11 @@ async function handleDelete(index: number) {
 
 .settings-committed__empty {
   padding: var(--space-lg) 0;
-  color: var(--v-text-muted);
+  color: var(--lune-text-muted);
 }
 
+/* Shape comes from `.lune-add-row` in patterns.css. */
 .settings-committed__add {
-  width: 100%;
-  padding: var(--space-md);
   margin-top: var(--space-md);
-  color: var(--v-text-muted);
-  text-align: left;
-  background: transparent;
-  border: 1px dashed var(--v-border, #e2d9cc);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: border-color var(--duration-short) var(--ease-move);
-}
-
-.settings-committed__add:hover {
-  border-color: var(--v-border-strong, #c8b8a4);
-}
-
-.settings-committed__add:focus-visible {
-  outline: 2px solid rgb(var(--v-theme-primary));
-  outline-offset: 2px;
 }
 </style>

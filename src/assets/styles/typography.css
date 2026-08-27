@@ -29,11 +29,33 @@
   line-height: 1.6;
 }
 
-.text-button {
+/* Deliberately NOT named `.text-button`.
+ *
+ * Vuetify ships its own Material typography utility under that exact name, and
+ * it uses !important:
+ *
+ *   .text-button {
+ *     font-size: 0.875rem !important;
+ *     letter-spacing: 0.0892857143em !important;
+ *     text-transform: uppercase !important;
+ *   }
+ *
+ * A same-named rule of ours can never win those three properties, whatever the
+ * load order or specificity — which is why every button in the app rendered
+ * UPPERCASE at 14px with wide Material tracking, and why `.onboarding__cta`'s
+ * own `text-transform: none` and `font-size: 16px` had no effect.
+ *
+ * DESIGN.md specs buttons as DM Sans 14–16px/500 and never asks for uppercase.
+ * The labels are spoken phrases — "I'm done setting up", "That's this week",
+ * "Send my link" — and shouting them at someone anxious about money is exactly
+ * the register this product refuses. Hence the namespaced name.
+ */
+.lune-button {
   font-family: 'DM Sans', sans-serif;
   font-size: 15px;
   font-weight: 500;
   letter-spacing: 0.01em;
+  text-transform: none;
 }
 
 .text-meta {

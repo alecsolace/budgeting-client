@@ -4,7 +4,7 @@
     <p class="text-body lune-notfound__copy">
       That page doesn't exist — no harm done. Your weekly log is right where you left it.
     </p>
-    <router-link to="/" class="text-button lune-notfound__link">Back to this week</router-link>
+    <router-link to="/" class="lune-button lune-notfound__link">Back to this week</router-link>
   </v-container>
 </template>
 
@@ -19,7 +19,7 @@
 
 .lune-notfound__copy {
   margin-top: var(--space-md);
-  color: var(--v-text-muted);
+  color: var(--lune-text-muted);
 }
 
 .lune-notfound__link {

@@ -55,6 +55,6 @@ onMounted(async () => {
 }
 
 .lune-callback__copy {
-  color: var(--v-text-muted);
+  color: var(--lune-text-muted);
 }
 </style>

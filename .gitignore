@@ -7,3 +7,4 @@ dist-ssr
 # and allow only the checked-in template back through.
 .env*
 !.env.example
+.gstack/
