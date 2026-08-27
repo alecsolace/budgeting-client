@@ -56,6 +56,9 @@ interface EditableRow {
   key: number
   draft: CommittedExpenseDraft
   errors: Array<keyof CommittedExpenseDraft>
+  // A fulfilled POST is retained locally if a sibling request fails, so a
+  // retry never creates a duplicate expense.
+  saved: boolean
 }
 
 let nextKey = 0
@@ -65,6 +68,7 @@ function emptyRow(): EditableRow {
     key: nextKey++,
     draft: { name: '', amount: 0, frequency: 'monthly', category: 'other' },
     errors: [],
+    saved: false,
   }
 }
 
@@ -112,25 +116,51 @@ async function submit() {
     return
   }
 
-  const validDrafts = rows.value
-    .filter((row) => isFilled(row.draft.name) && row.draft.amount > 0)
-    .map((row) => ({ ...row.draft, name: row.draft.name.trim() }))
+  const validRows = rows.value.filter(
+    (row) => isFilled(row.draft.name) && row.draft.amount > 0,
+  )
+  const unsavedRows = validRows.filter((row) => !row.saved)
 
   // No valid rows: the user chose to skip setup. That's allowed (AC10) — just
   // go home. The session's onboarding check already ran, so the guard won't
   // bounce them back here.
-  if (validDrafts.length === 0) {
+  if (validRows.length === 0) {
     committedStore.setHasAny(false)
     await router.push('/')
     return
   }
 
-  saving.value = true
-  try {
-    await Promise.all(validDrafts.map((draft) => createCommittedExpense(draft)))
+  // This can happen after a partial failure: all valid rows have since made it
+  // to the server, and the user has pressed the CTA again.
+  if (unsavedRows.length === 0) {
     committedStore.setHasAny(true)
     await router.push('/')
-  } catch {
+    return
+  }
+
+  saving.value = true
+  const results = await Promise.allSettled(
+    unsavedRows.map((row) =>
+      createCommittedExpense({ ...row.draft, name: row.draft.name.trim() }),
+    ),
+  )
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      unsavedRows[index].saved = true
+    }
+  })
+
+  try {
+    if (results.every((result) => result.status === 'fulfilled')) {
+      committedStore.setHasAny(true)
+      await router.push('/')
+      return
+    }
+
+    // Preserve successful rows so a retry only POSTs the rows that failed.
+    if (results.some((result) => result.status === 'fulfilled')) {
+      committedStore.setHasAny(true)
+    }
     errorMessage.value = "Couldn't save — check your connection and try again."
   } finally {
     saving.value = false

@@ -19,6 +19,7 @@ import {
   listCommittedExpenses,
   createCommittedExpense,
   deleteCommittedExpense,
+  updateCommittedExpense,
   type CommittedExpense,
 } from '../services/committedExpenses'
 
@@ -26,6 +27,7 @@ const vuetify = createVuetify({ components, directives })
 const listMock = vi.mocked(listCommittedExpenses)
 const createMock = vi.mocked(createCommittedExpense)
 const deleteMock = vi.mocked(deleteCommittedExpense)
+const updateMock = vi.mocked(updateCommittedExpense)
 
 beforeAll(() => {
   global.ResizeObserver = class {
@@ -53,6 +55,7 @@ beforeEach(() => {
   listMock.mockReset().mockResolvedValue([])
   createMock.mockReset()
   deleteMock.mockReset().mockResolvedValue()
+  updateMock.mockReset().mockResolvedValue(expense())
 })
 
 async function mountSettings() {
@@ -117,5 +120,61 @@ describe('SettingsCommitted', () => {
     await flushPromises()
 
     expect(createMock).not.toHaveBeenCalled()
+  })
+
+  it('saves an existing edit when tab moves from the name field to amount', async () => {
+    listMock.mockResolvedValue([expense({ id: 'exp-1', name: 'Rent' })])
+    const wrapper = await mountSettings()
+    const row = wrapper.findComponent(CommittedExpenseRow)
+
+    row.vm.$emit('update:modelValue', {
+      name: 'Utilities',
+      amount: 1200,
+      frequency: 'monthly',
+      category: 'housing',
+    })
+    await flushPromises()
+
+    const nameInput = row.get('.committed-row__name input')
+    const amountInput = row.get('.committed-row__amount-field input')
+    nameInput.element.dispatchEvent(
+      new FocusEvent('focusout', { bubbles: true, relatedTarget: amountInput.element }),
+    )
+    await flushPromises()
+
+    expect(updateMock).toHaveBeenCalledWith(
+      'exp-1',
+      expect.objectContaining({ name: 'Utilities' }),
+    )
+  })
+
+  it('does not duplicate a new expense when multiple blur events occur during its POST', async () => {
+    let resolveCreate: (value: CommittedExpense) => void = () => undefined
+    createMock.mockImplementationOnce(
+      () =>
+        new Promise<CommittedExpense>((resolve) => {
+          resolveCreate = resolve
+        }),
+    )
+
+    const wrapper = await mountSettings()
+    await wrapper.get('.settings-committed__add').trigger('click')
+    const row = wrapper.findComponent(CommittedExpenseRow)
+    row.vm.$emit('update:modelValue', {
+      name: 'Gym',
+      amount: 40,
+      frequency: 'monthly',
+      category: 'other',
+    })
+    await flushPromises()
+
+    row.vm.$emit('blur')
+    row.vm.$emit('blur')
+    expect(createMock).toHaveBeenCalledTimes(1)
+
+    resolveCreate(expense({ id: 'new-1', name: 'Gym', amount: 40 }))
+    await flushPromises()
+
+    expect(createMock).toHaveBeenCalledTimes(1)
   })
 })

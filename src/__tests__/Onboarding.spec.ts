@@ -106,4 +106,45 @@ describe('Onboarding', () => {
     expect(createMock).not.toHaveBeenCalled()
     expect(push).toHaveBeenCalledWith('/')
   })
+
+  it('does not duplicate successful rows when one parallel POST fails and the user retries', async () => {
+    const wrapper = mountOnboarding()
+    setRow(wrapper, 0, { name: 'Rent', amount: 1200 })
+    setRow(wrapper, 1, { name: 'Gym', amount: 40 })
+    await flushPromises()
+
+    createMock
+      .mockResolvedValueOnce({
+        id: 'rent-id',
+        name: 'Rent',
+        amount: 1200,
+        currency: 'USD',
+        frequency: 'monthly',
+        category: 'other',
+        active: true,
+      })
+      .mockRejectedValueOnce(new Error('offline'))
+
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(createMock).toHaveBeenCalledTimes(2)
+    expect(push).not.toHaveBeenCalled()
+
+    createMock.mockResolvedValue({
+      id: 'gym-id',
+      name: 'Gym',
+      amount: 40,
+      currency: 'USD',
+      frequency: 'monthly',
+      category: 'other',
+      active: true,
+    })
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(createMock).toHaveBeenCalledTimes(3)
+    expect(createMock).toHaveBeenLastCalledWith(expect.objectContaining({ name: 'Gym' }))
+    expect(push).toHaveBeenCalledWith('/')
+  })
 })

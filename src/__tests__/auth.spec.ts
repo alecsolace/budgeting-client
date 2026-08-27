@@ -5,6 +5,7 @@ vi.mock('@supabase/supabase-js', () => import('./mocks/supabase'))
 
 import { authMock, emitAuthState, fakeSession, resetSupabaseMock } from './mocks/supabase'
 import { useAuthStore } from '../stores/auth'
+import { useCommittedExpensesStore } from '../stores/committedExpenses'
 
 describe('useAuthStore', () => {
   beforeEach(() => {
@@ -67,6 +68,19 @@ describe('useAuthStore', () => {
     emitAuthState('SIGNED_OUT', null)
     expect(store.isAuthenticated).toBe(false)
     expect(store.user).toBeNull()
+  })
+
+  it('resets the committed-expense session cache for an automatic sign-out', () => {
+    const store = useAuthStore()
+    const committedStore = useCommittedExpensesStore()
+    emitAuthState('SIGNED_IN', fakeSession())
+    committedStore.setHasAny(true)
+
+    emitAuthState('SIGNED_OUT', null)
+
+    expect(store.isAuthenticated).toBe(false)
+    expect(committedStore.hasAny).toBeNull()
+    expect(committedStore.onboardingChecked).toBe(false)
   })
 
   it('signIn normalizes the address and passes the callback redirect', async () => {

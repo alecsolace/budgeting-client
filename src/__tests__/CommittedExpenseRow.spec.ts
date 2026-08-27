@@ -51,6 +51,18 @@ describe('CommittedExpenseRow', () => {
     expect(mountRow({ deletable: true }).findComponent({ name: 'VBtn' }).exists()).toBe(true)
   })
 
+  it('emits blur when focus tabs from one field to another in the same row', () => {
+    const wrapper = mountRow()
+    const nameInput = wrapper.get('.committed-row__name input')
+    const amountInput = wrapper.get('.committed-row__amount-field input')
+
+    nameInput.element.dispatchEvent(
+      new FocusEvent('focusout', { bubbles: true, relatedTarget: amountInput.element }),
+    )
+
+    expect(wrapper.emitted('blur')).toHaveLength(1)
+  })
+
   it('shows the weekly equivalent (amount ÷ 4.33) below the amount for a monthly expense', () => {
     const wrapper = mountRow({ modelValue: draft({ frequency: 'monthly', amount: 100 }) })
 

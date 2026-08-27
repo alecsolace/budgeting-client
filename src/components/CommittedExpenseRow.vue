@@ -94,15 +94,11 @@ const emit = defineEmits<{
   blur: []
 }>()
 
-// focusout bubbles, so it also fires when tabbing between this row's own
-// fields. Only treat it as a blur when focus has actually landed outside the
-// row (or nowhere).
-function handleFocusOut(event: FocusEvent) {
-  const next = event.relatedTarget as Node | null
-  const row = event.currentTarget as HTMLElement
-  if (!next || !row.contains(next)) {
-    emit('blur')
-  }
+// `focusout` bubbles from each field. Saving at that point covers the promised
+// "tab away" behaviour as well as clicking outside the row; the parent skips
+// no-op snapshots, so moving through untouched fields does not write anything.
+function handleFocusOut() {
+  emit('blur')
 }
 
 const invalidFields = computed(() => props.invalidFields)

@@ -21,7 +21,10 @@
         @delete="handleDelete(index)"
       />
 
-      <p v-if="!loading && rows.length === 0" class="text-body settings-committed__empty">
+      <p
+        v-if="!loading && !errorMessage && rows.length === 0"
+        class="text-body settings-committed__empty"
+      >
         No committed expenses. Add one above.
       </p>
     </div>
@@ -54,6 +57,11 @@ interface EditableRow {
   draft: CommittedExpenseDraft
   // Snapshot of the last persisted state, to skip no-op PUTs on blur.
   saved: string
+  // Serialise writes per row. A second blur while a request is running is
+  // queued, avoiding duplicate POSTs and out-of-order PUTs.
+  savePromise: Promise<void> | null
+  saveQueued: boolean
+  deleted: boolean
 }
 
 let nextKey = 0
@@ -80,7 +88,15 @@ onMounted(async () => {
         frequency: expense.frequency,
         category: expense.category,
       }
-      return { key: nextKey++, id: expense.id, draft, saved: snapshot(draft) }
+      return {
+        key: nextKey++,
+        id: expense.id,
+        draft,
+        saved: snapshot(draft),
+        savePromise: null,
+        saveQueued: false,
+        deleted: false,
+      }
     })
     committedStore.setHasAny(rows.value.length > 0)
   } catch {
@@ -92,14 +108,51 @@ onMounted(async () => {
 
 function addRow() {
   const draft = emptyDraft()
-  rows.value.push({ key: nextKey++, id: null, draft, saved: snapshot(draft) })
+  rows.value.push({
+    key: nextKey++,
+    id: null,
+    draft,
+    saved: snapshot(draft),
+    savePromise: null,
+    saveQueued: false,
+    deleted: false,
+  })
 }
 
-async function handleBlur(index: number) {
+function handleBlur(index: number) {
   const row = rows.value[index]
-  if (!row) {
+  if (!row || row.deleted) {
     return
   }
+
+  if (row.savePromise) {
+    row.saveQueued = true
+    return
+  }
+
+  row.savePromise = persistRow(row).finally(() => {
+    row.savePromise = null
+    if (row.saveQueued && !row.deleted) {
+      row.saveQueued = false
+      persistQueuedRow(row)
+    }
+  })
+}
+
+function persistQueuedRow(row: EditableRow) {
+  if (row.savePromise || row.deleted) {
+    return
+  }
+  row.savePromise = persistRow(row).finally(() => {
+    row.savePromise = null
+    if (row.saveQueued && !row.deleted) {
+      row.saveQueued = false
+      persistQueuedRow(row)
+    }
+  })
+}
+
+async function persistRow(row: EditableRow) {
   const current = snapshot(row.draft)
   if (current === row.saved) {
     return
@@ -119,11 +172,16 @@ async function handleBlur(index: number) {
     if (row.id === null) {
       const created = await createCommittedExpense(payload)
       row.id = created.id
-      committedStore.setHasAny(true)
+      if (!row.deleted) {
+        committedStore.setHasAny(true)
+      }
     } else {
       await updateCommittedExpense(row.id, payload)
     }
-    row.saved = current
+    // Store exactly what was sent. In particular, this prevents a trimmed
+    // name from looking dirty forever after it has been persisted.
+    row.draft = payload
+    row.saved = snapshot(payload)
   } catch {
     errorMessage.value = "Couldn't save that change — check your connection and try again."
   }
@@ -136,11 +194,15 @@ async function handleDelete(index: number) {
   }
 
   // Remove from the DOM immediately, no confirmation (issue #7 AC7).
+  row.deleted = true
   rows.value.splice(index, 1)
   if (rows.value.length === 0) {
     committedStore.setHasAny(false)
   }
 
+  // If a field was just blurred, make the DELETE follow its in-flight POST or
+  // PUT. Otherwise a late PUT could reactivate an expense after the delete.
+  await row.savePromise
   if (row.id === null) {
     return
   }
