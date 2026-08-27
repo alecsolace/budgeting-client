@@ -68,7 +68,10 @@ function isUsed(name: string): boolean {
     background-color var(--duration-short) var(--ease-move);
 }
 
-.lune-chip:hover {
+/* Scoped off the used state: .lune-chip--used sets a sage border, and an
+   unscoped :hover (equal specificity, later in the file) would override it —
+   so hovering a selected chip would drop its "selected" outline. */
+.lune-chip:not(.lune-chip--used):hover {
   border-color: var(--lune-border-strong);
 }
 
