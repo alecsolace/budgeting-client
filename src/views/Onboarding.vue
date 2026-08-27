@@ -285,6 +285,9 @@ async function finish() {
 
 .onboarding__intro {
   margin-top: var(--space-md);
+  /* ~65 chars per line at the body size — the 640px column runs to ~81,
+     past the comfortable-measure ceiling. */
+  max-width: 34em;
   color: var(--lune-text-muted);
 }
 
@@ -397,13 +400,25 @@ async function finish() {
 }
 
 .onboarding__status {
-  min-height: var(--space-lg);
+  /* No reserved height: on the empty first-run state a 24px placeholder just
+     floats the CTA away from the entry row. Adding the first expense moves the
+     CTA down by a whole row + the running total anyway, so the reserve bought
+     nothing and cost a void on the most-seen state. */
   margin-top: var(--space-sm);
 }
 
 .onboarding__running {
   text-align: right;
   color: var(--lune-text-muted);
+}
+
+/* Right-aligned it sits under the amount column, but "that's about $1,486.99 a
+   week so far" is wider than a 375px content box and clips at the edge. Below
+   the tight zone, let it start from the left and wrap if it needs to. */
+@media (max-width: 480px) {
+  .onboarding__running {
+    text-align: left;
+  }
 }
 
 .onboarding__error {
