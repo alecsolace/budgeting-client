@@ -302,18 +302,27 @@ async function finish() {
   list-style: none;
 }
 
+/* Settled rows and the open entry row share one grid track list so the amount
+   column lines up between them: name | amount | remove-button gutter. The open
+   row leaves the third column empty. */
 .onboarding__settled {
-  display: flex;
+  display: grid;
+  /* Columns collapse gracefully on narrow screens so the name never loses room
+     to a fixed amount column — the meta line ("monthly · subscription") stays
+     on one line at 375px. */
+  grid-template-columns:
+    minmax(0, 1fr)
+    clamp(92px, 24vw, 140px)
+    clamp(28px, 8vw, 40px);
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md);
+  gap: clamp(var(--space-sm), 3vw, var(--space-md));
+  padding: clamp(var(--space-sm), 3vw, var(--space-md));
   margin-bottom: var(--space-sm);
   background: var(--lune-committed-soft);
   border-radius: var(--radius-md);
 }
 
 .onboarding__settled-main {
-  flex: 1;
   min-width: 0;
 }
 
@@ -330,12 +339,15 @@ async function finish() {
 }
 
 .onboarding__settled-amount {
+  /* Right-aligned in its own grid column so the numbers form a clean vertical
+     line with the open entry row below. */
+  text-align: right;
   font-size: 15px;
   font-weight: 500;
-  color: var(--lune-committed);
 }
 
 .onboarding__remove {
+  justify-self: center;
   color: var(--lune-text-muted);
 }
 
@@ -343,9 +355,15 @@ async function finish() {
    page against the settled sage rows above it. */
 .onboarding__active {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px;
-  gap: var(--space-sm);
-  padding: var(--space-sm);
+  /* Same track list as .onboarding__settled so "0.00" lines up under the settled
+     amounts. The trailing column stays empty — it reserves the remove-button
+     gutter. */
+  grid-template-columns:
+    minmax(0, 1fr)
+    clamp(92px, 24vw, 140px)
+    clamp(28px, 8vw, 40px);
+  gap: clamp(var(--space-sm), 3vw, var(--space-md));
+  padding: clamp(var(--space-sm), 3vw, var(--space-md));
   background: var(--lune-surface-raised);
   border: 1px solid var(--lune-border-input);
   border-radius: var(--radius-md);
