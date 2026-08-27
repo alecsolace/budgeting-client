@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../plugins/supabase'
 import { sanitizeRedirect } from '../utils/redirect'
+import { useCommittedExpensesStore } from './committedExpenses'
 
 export const useAuthStore = defineStore('auth', () => {
   const session = ref<Session | null>(null)
@@ -12,12 +13,22 @@ export const useAuthStore = defineStore('auth', () => {
 
   let initPromise: Promise<void> | null = null
 
+  function applySession(newSession: Session | null): void {
+    // Reset the once-per-session onboarding decision whenever the signed-in
+    // identity changes (including a local sign-out caused by a 401). Calling
+    // only the explicit signOut action misses that automatic path.
+    if (user.value?.id !== newSession?.user.id) {
+      useCommittedExpensesStore().reset()
+    }
+    session.value = newSession
+    user.value = newSession?.user ?? null
+  }
+
   // Assigns only — never awaits another supabase.auth.* call here.
   // Awaiting inside this callback risks deadlocking supabase-js's internal
   // auth lock (documented supabase-js pitfall).
   supabase.auth.onAuthStateChange((_event, newSession) => {
-    session.value = newSession
-    user.value = newSession?.user ?? null
+    applySession(newSession)
   })
 
   async function initialize(): Promise<void> {
@@ -27,8 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     initPromise = (async () => {
       const { data } = await supabase.auth.getSession()
-      session.value = data.session
-      user.value = data.session?.user ?? null
+      applySession(data.session)
     })()
 
     return initPromise
@@ -76,15 +86,13 @@ export const useAuthStore = defineStore('auth', () => {
 
     // onAuthStateChange normally makes this assignment. Keep the state in
     // sync here too so the router can immediately admit the destination.
-    session.value = data.session
-    user.value = data.session?.user ?? null
+    applySession(data.session)
   }
 
   async function signOut(): Promise<void> {
     // Explicit user-initiated logout: revoke refresh tokens everywhere.
     await supabase.auth.signOut({ scope: 'global' })
-    session.value = null
-    user.value = null
+    applySession(null)
   }
 
   return {
