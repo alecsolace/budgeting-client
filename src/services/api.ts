@@ -9,9 +9,30 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-function resolveOrigin(url: string | undefined, base: string | undefined): string | null {
+const windowOrigin = typeof window !== 'undefined' ? window.location.origin : undefined
+
+// `new URL(url, base)` throws when `base` isn't itself absolute — which
+// includes a relative `VITE_API_BASE_URL` such as '/api' (a legitimate config
+// behind a reverse proxy), not just an undefined base. Resolve `base` against
+// the app's own origin first so a relative base becomes absolute; an
+// already-absolute base passes through new URL(base, windowOrigin)
+// unchanged. Without this, a relative base silently nulls apiOrigin and the
+// Authorization header is never attached to any request.
+// Exported for direct unit testing — `baseURL` above is captured once at
+// module load from import.meta.env, so exercising the relative-base case
+// through the whole module would mean re-importing with a different env per
+// test rather than just calling the function.
+export function resolveOrigin(url: string | undefined, base: string | undefined): string | null {
+  let effectiveBase = windowOrigin
+  if (base) {
+    try {
+      effectiveBase = new URL(base, windowOrigin).href
+    } catch {
+      return null
+    }
+  }
   try {
-    return new URL(url ?? '', base).origin
+    return new URL(url ?? '', effectiveBase).origin
   } catch {
     return null
   }

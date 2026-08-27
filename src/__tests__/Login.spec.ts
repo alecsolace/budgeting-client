@@ -34,6 +34,25 @@ function mountLogin() {
   return mount(Login, { global: { plugins: [vuetify, pinia, router] } })
 }
 
+// Separate from mountLogin() so the other ~dozen tests above don't have to
+// become async just to accommodate the router.push() this one needs before
+// Login.vue reads route.query.redirect.
+async function mountLoginAt(path: string) {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+
+  const router = createRouter({
+    history: createWebHistory(),
+    routes: [
+      { path: '/', component: { template: '<div />' } },
+      { path: '/login', component: Login },
+    ],
+  })
+
+  await router.push(path)
+  return mount(Login, { global: { plugins: [vuetify, pinia, router] } })
+}
+
 async function submitWith(wrapper: VueWrapper, address: string) {
   const input = wrapper.find('input[name="email"]')
   await input.setValue(address)
@@ -119,6 +138,19 @@ describe('Login', () => {
     expect(existingText).toContain('Check your inbox — the link is on its way.')
     // Byte-identical: any divergence here is a user-enumeration oracle.
     expect(brandNewText).toBe(existingText)
+  })
+
+  it('embeds ?redirect= from the URL into the magic-link callback', async () => {
+    const wrapper = await mountLoginAt('/login?redirect=%2Fsummary%2F2026-08-24')
+    await submitWith(wrapper, 'sam@example.com')
+
+    expect(authMock.signInWithOtp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({
+          emailRedirectTo: expect.stringContaining('redirect=%2Fsummary%2F2026-08-24'),
+        }),
+      }),
+    )
   })
 
   it('replaces the form entirely once the link is sent', async () => {

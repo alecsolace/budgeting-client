@@ -1,5 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { sanitizeRedirect } from '../utils/redirect'
+
+// Re-exported so existing call sites (views, tests) don't need to change
+// import paths — the implementation lives in utils/redirect.ts because
+// stores/auth.ts needs it too, and importing it from here would cycle back
+// through this module's own import of useAuthStore.
+export { sanitizeRedirect }
 
 const routes = [
   {
@@ -47,22 +54,6 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
 })
-
-// Accept only a same-origin, path-relative redirect target. Rejects
-// protocol-relative ('//evil.com') and backslash-disguised ('/\\evil.com')
-// forms that browsers/some parsers treat as absolute — closes an
-// open-redirect hole on the post-login redirect.
-export function sanitizeRedirect(redirect: unknown): string {
-  if (
-    typeof redirect === 'string' &&
-    redirect.startsWith('/') &&
-    !redirect.startsWith('//') &&
-    !redirect.startsWith('/\\')
-  ) {
-    return redirect
-  }
-  return '/'
-}
 
 router.beforeEach(async (to) => {
   const authStore = useAuthStore()

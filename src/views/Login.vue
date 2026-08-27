@@ -60,7 +60,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '../stores/auth'
-import { sanitizeRedirect } from '../plugins/router'
+import { sanitizeRedirect } from '../utils/redirect'
 
 const COOLDOWN_SECONDS = 60
 
@@ -145,7 +145,10 @@ async function submit() {
   sending.value = true
 
   try {
-    await authStore.signIn(email.value)
+    // Embed the intended destination in the magic-link's callback URL —
+    // the link is usually opened in a fresh tab from the mail client, so
+    // there is no ?redirect= to fall back on once AuthCallback loads there.
+    await authStore.signIn(email.value, route.query.redirect)
     // Identical outcome whether or not this address has an account. Any
     // divergence here — different copy, a different delay, a different route —
     // is a user-enumeration oracle.

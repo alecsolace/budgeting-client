@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../plugins/supabase'
+import { sanitizeRedirect } from '../utils/redirect'
 
 export const useAuthStore = defineStore('auth', () => {
   const session = ref<Session | null>(null)
@@ -33,15 +34,21 @@ export const useAuthStore = defineStore('auth', () => {
     return initPromise
   }
 
-  async function signIn(email: string): Promise<void> {
+  // `redirect` is whatever the router guard put in ?redirect= on /login
+  // (untrusted — a caller could hand this straight from route.query).
+  // Sanitize it here rather than trust the caller, and only append it when
+  // it's not the default '/', so callback URLs stay short in the common case.
+  async function signIn(email: string, redirect?: unknown): Promise<void> {
     const normalizedEmail = email.trim().toLowerCase()
     const siteUrl = import.meta.env.VITE_PUBLIC_SITE_URL || window.location.origin
+    const target = sanitizeRedirect(redirect)
+    const callbackUrl = `${siteUrl}/auth/callback${target === '/' ? '' : `?redirect=${encodeURIComponent(target)}`}`
 
     const { error } = await supabase.auth.signInWithOtp({
       email: normalizedEmail,
       options: {
         shouldCreateUser: true,
-        emailRedirectTo: `${siteUrl}/auth/callback`,
+        emailRedirectTo: callbackUrl,
       },
     })
 

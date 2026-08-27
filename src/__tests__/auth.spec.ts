@@ -82,6 +82,34 @@ describe('useAuthStore', () => {
     })
   })
 
+  it('signIn embeds a sanitized redirect target in the callback URL', async () => {
+    const store = useAuthStore()
+    await store.signIn('sam@example.com', '/summary/2026-08-24')
+
+    expect(authMock.signInWithOtp).toHaveBeenCalledWith({
+      email: 'sam@example.com',
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo:
+          'http://localhost:5173/auth/callback?redirect=%2Fsummary%2F2026-08-24',
+      },
+    })
+  })
+
+  it('signIn sanitizes an unsafe redirect before it ever reaches Supabase', async () => {
+    const store = useAuthStore()
+    await store.signIn('sam@example.com', 'https://evil.example.com')
+
+    expect(authMock.signInWithOtp).toHaveBeenCalledWith({
+      email: 'sam@example.com',
+      options: {
+        shouldCreateUser: true,
+        // No ?redirect= — sanitizeRedirect collapsed it to '/', the default.
+        emailRedirectTo: 'http://localhost:5173/auth/callback',
+      },
+    })
+  })
+
   it('signIn rethrows the provider error so the view can classify it', async () => {
     const rateLimit = Object.assign(new Error('rate limited'), { status: 429 })
     authMock.signInWithOtp.mockResolvedValue({ data: {}, error: rateLimit })

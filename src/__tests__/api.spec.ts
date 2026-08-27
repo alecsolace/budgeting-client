@@ -8,7 +8,7 @@ const routerMock = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }))
 vi.mock('../plugins/router', () => ({ default: routerMock }))
 
 import { authMock, fakeSession, resetSupabaseMock } from './mocks/supabase'
-import { api } from '../services/api'
+import { api, resolveOrigin } from '../services/api'
 
 // Axios exposes its registered interceptors on `.handlers`; driving them
 // directly keeps these assertions on our own logic instead of on a network
@@ -72,6 +72,18 @@ describe('api', () => {
     const config = await requestInterceptor()(configFor('//evil.example.com/collect'))
 
     expect(config.headers.Authorization).toBeUndefined()
+  })
+
+  it('resolves a relative baseURL (e.g. "/api" behind a reverse proxy) against window.location', () => {
+    // Regression: new URL(url, base) throws when base is relative too, which
+    // used to null out apiOrigin and silently disable the Authorization
+    // header for every request in this deployment shape.
+    expect(resolveOrigin('/weeks/current', '/api')).toBe(window.location.origin)
+    expect(resolveOrigin(undefined, '/api')).toBe(window.location.origin)
+  })
+
+  it('still resolves an absolute baseURL exactly as before', () => {
+    expect(resolveOrigin('/weeks/current', 'http://localhost:5000')).toBe('http://localhost:5000')
   })
 
   it('signs out and navigates exactly once for N concurrent 401s', async () => {
