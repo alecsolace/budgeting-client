@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../plugins/supabase'
 import { sanitizeRedirect } from '../utils/redirect'
+import { useCommittedExpensesStore } from './committedExpenses'
 
 export const useAuthStore = defineStore('auth', () => {
   const session = ref<Session | null>(null)
@@ -85,6 +86,10 @@ export const useAuthStore = defineStore('auth', () => {
     await supabase.auth.signOut({ scope: 'global' })
     session.value = null
     user.value = null
+
+    // Drop the previous user's committed-expenses cache so the onboarding
+    // check re-runs for whoever signs in next.
+    useCommittedExpensesStore().reset()
   }
 
   return {
