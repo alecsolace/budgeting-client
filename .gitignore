@@ -2,4 +2,8 @@ node_modules
 dist
 dist-ssr
 *.local
-.env
+
+# Ignore every env file (.env, .env.local, .env.production, .env.development…)
+# and allow only the checked-in template back through.
+.env*
+!.env.example
