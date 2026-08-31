@@ -14,13 +14,19 @@ vi.mock('vue-router', async (importOriginal) => ({
 vi.mock('../services/committedExpenses', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/committedExpenses')>()),
   createCommittedExpense: vi.fn(),
+  deleteCommittedExpense: vi.fn(),
 }))
 
 import Onboarding from '../views/Onboarding.vue'
-import { createCommittedExpense, type CommittedExpense } from '../services/committedExpenses'
+import {
+  createCommittedExpense,
+  deleteCommittedExpense,
+  type CommittedExpense,
+} from '../services/committedExpenses'
 
 const vuetify = createVuetify({ components, directives })
 const createMock = vi.mocked(createCommittedExpense)
+const deleteMock = vi.mocked(deleteCommittedExpense)
 
 beforeAll(() => {
   global.ResizeObserver = class {
@@ -47,6 +53,7 @@ beforeEach(() => {
   setActivePinia(createPinia())
   push.mockReset()
   createMock.mockReset().mockResolvedValue(created())
+  deleteMock.mockReset().mockResolvedValue()
 })
 
 function mountOnboarding() {
@@ -122,6 +129,17 @@ describe('Onboarding', () => {
     expect(wrapper.text()).toContain('What should we call this one?')
   })
 
+  it('blocks finishing when a named expense is still missing its amount', async () => {
+    const wrapper = mountOnboarding()
+
+    await wrapper.get('#onboarding-name').setValue('Council tax')
+    await finishSetup(wrapper)
+
+    expect(createMock).not.toHaveBeenCalled()
+    expect(push).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('How much is this one?')
+  })
+
   it('lets a person skip setup entirely — that is an allowed outcome', async () => {
     const wrapper = mountOnboarding()
 
@@ -159,6 +177,27 @@ describe('Onboarding', () => {
     expect(push).toHaveBeenCalledWith('/')
   })
 
+  it('retries every row when an entire save attempt fails', async () => {
+    const wrapper = mountOnboarding()
+    await enter(wrapper, 'Rent', '1200')
+    await enter(wrapper, 'Gym', '40')
+
+    createMock.mockReset().mockRejectedValue(new Error('offline'))
+    await finishSetup(wrapper)
+
+    expect(createMock).toHaveBeenCalledTimes(2)
+    expect(push).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('we kept what you entered')
+
+    createMock
+      .mockResolvedValueOnce(created({ id: 'srv-rent', name: 'Rent' }))
+      .mockResolvedValueOnce(created({ id: 'srv-gym', name: 'Gym' }))
+    await finishSetup(wrapper)
+
+    expect(createMock).toHaveBeenCalledTimes(4)
+    expect(push).toHaveBeenCalledWith('/')
+  })
+
   it('a preset chip fills the name and carries its category, so only the amount is typed', async () => {
     const wrapper = mountOnboarding()
 
@@ -189,6 +228,17 @@ describe('Onboarding', () => {
 
     expect(wrapper.text()).toContain('Council tax')
     expect((wrapper.get('#onboarding-name').element as HTMLInputElement).value).toBe('Rent')
+  })
+
+  it('does not replace a partial custom expense when a preset is tapped', async () => {
+    const wrapper = mountOnboarding()
+
+    await wrapper.get('#onboarding-name').setValue('Council tax')
+    await chipNamed(wrapper, 'Rent').trigger('click')
+    await flushPromises()
+
+    expect((wrapper.get('#onboarding-name').element as HTMLInputElement).value).toBe('Council tax')
+    expect(wrapper.text()).toContain('How much is this one?')
   })
 
   it('can be completed with the keyboard alone', async () => {
@@ -239,5 +289,124 @@ describe('Onboarding', () => {
     expect(wrapper.text()).not.toContain('a week so far')
     await finishSetup(wrapper)
     expect(createMock).not.toHaveBeenCalled()
+  })
+
+  it('deletes a row that already reached the server during a partial submission', async () => {
+    const wrapper = mountOnboarding()
+    await enter(wrapper, 'Rent', '1200')
+    await enter(wrapper, 'Gym', '40')
+
+    createMock.mockReset()
+    createMock
+      .mockResolvedValueOnce(created({ id: 'srv-rent', name: 'Rent' }))
+      .mockRejectedValueOnce(new Error('offline'))
+    await finishSetup(wrapper)
+
+    await wrapper.get('button[aria-label="Remove Rent"]').trigger('click')
+    await flushPromises()
+
+    expect(deleteMock).toHaveBeenCalledWith('srv-rent')
+    expect(wrapper.find('button[aria-label="Remove Rent"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Gym')
+  })
+
+  it('keeps a persisted row when deletion fails and lets the person retry', async () => {
+    const wrapper = mountOnboarding()
+    await enter(wrapper, 'Rent', '1200')
+    await enter(wrapper, 'Gym', '40')
+
+    createMock.mockReset()
+    createMock
+      .mockResolvedValueOnce(created({ id: 'srv-rent', name: 'Rent' }))
+      .mockRejectedValueOnce(new Error('offline'))
+    await finishSetup(wrapper)
+
+    deleteMock.mockRejectedValueOnce(new Error('offline'))
+    await wrapper.get('button[aria-label="Remove Rent"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('button[aria-label="Remove Rent"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain("Couldn't remove Rent")
+
+    deleteMock.mockResolvedValueOnce()
+    await wrapper.get('button[aria-label="Remove Rent"]').trigger('click')
+    await flushPromises()
+
+    expect(deleteMock).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('button[aria-label="Remove Rent"]').exists()).toBe(false)
+  })
+
+  it('clears a stale partial-save error when the failed row is removed', async () => {
+    const wrapper = mountOnboarding()
+    await enter(wrapper, 'Rent', '1200')
+    await enter(wrapper, 'Gym', '40')
+
+    createMock.mockReset()
+    createMock
+      .mockResolvedValueOnce(created({ id: 'srv-rent', name: 'Rent' }))
+      .mockRejectedValueOnce(new Error('offline'))
+    await finishSetup(wrapper)
+    expect(wrapper.text()).toContain("Couldn't save everything")
+
+    await wrapper.get('button[aria-label="Remove Gym"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain("Couldn't save everything")
+    await finishSetup(wrapper)
+    expect(createMock).toHaveBeenCalledTimes(2)
+    expect(push).toHaveBeenCalledWith('/')
+  })
+
+  it('locks every entry control while records are being saved', async () => {
+    let resolveCreate: ((value: CommittedExpense) => void) | undefined
+    createMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve
+        }),
+    )
+
+    const wrapper = mountOnboarding()
+    await enter(wrapper, 'Rent', '1200')
+    const finishing = wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('#onboarding-name').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('#onboarding-amount').attributes('disabled')).toBeDefined()
+    expect(chipNamed(wrapper, 'Netflix').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('button[aria-label="Remove Rent"]').attributes('disabled')).toBeDefined()
+
+    resolveCreate?.(created())
+    await finishing
+    await flushPromises()
+
+    expect(push).toHaveBeenCalledWith('/')
+  })
+
+  it('does not submit the same rows twice when finish is triggered rapidly', async () => {
+    let resolveCreate: ((value: CommittedExpense) => void) | undefined
+    createMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve
+        }),
+    )
+
+    const wrapper = mountOnboarding()
+    await enter(wrapper, 'Rent', '1200')
+
+    const firstSubmit = wrapper.get('form').trigger('submit')
+    await flushPromises()
+    const secondSubmit = wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+
+    resolveCreate?.(created())
+    await Promise.all([firstSubmit, secondSubmit])
+    await flushPromises()
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    expect(push).toHaveBeenCalledWith('/')
   })
 })

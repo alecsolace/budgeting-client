@@ -9,6 +9,7 @@
     <CommittedPresetChips
       class="onboarding__chips"
       :used-names="usedNames"
+      :disabled="saving"
       @pick="addFromPreset"
     />
 
@@ -35,7 +36,8 @@
             size="small"
             class="onboarding__remove"
             :aria-label="`Remove ${row.draft.name}`"
-            @click="remove(row.key)"
+            :disabled="saving"
+            @click="remove(row)"
           />
         </li>
       </ul>
@@ -52,7 +54,8 @@
           class="text-body onboarding__field onboarding__field--name"
           placeholder="What else?"
           autocomplete="off"
-          @keydown.enter.prevent="commitActive"
+          :disabled="saving"
+          @keydown.enter.prevent="commitActive()"
         />
 
         <label class="onboarding__sr-only" for="onboarding-amount">Amount</label>
@@ -66,8 +69,9 @@
           min="0"
           step="0.01"
           placeholder="0.00"
-          @keydown.enter.prevent="commitActive"
-          @blur="commitActive"
+          :disabled="saving"
+          @keydown.enter.prevent="commitActive()"
+          @blur="commitActive()"
         />
       </div>
 
@@ -99,6 +103,7 @@ import { useRouter } from 'vue-router'
 import CommittedPresetChips from '../components/CommittedPresetChips.vue'
 import {
   createCommittedExpense,
+  deleteCommittedExpense,
   weeklyEquivalent,
   type CommittedExpenseDraft,
   type CommittedPreset,
@@ -111,9 +116,9 @@ const committedStore = useCommittedExpensesStore()
 interface SettledRow {
   key: number
   draft: CommittedExpenseDraft
-  // A fulfilled create is remembered so a retry after a partial failure never
-  // duplicates a row that already reached the server.
-  saved: boolean
+  // Persist the returned id so a row saved during a partial submission can
+  // still be removed without leaving an orphaned server record behind.
+  savedId: string | null
 }
 
 let nextKey = 0
@@ -159,9 +164,14 @@ function resetActive() {
 }
 
 async function addFromPreset(preset: CommittedPreset) {
+  if (saving.value) return
+
   // Anything already typed is banked first, so tapping a chip mid-entry never
   // silently discards it.
-  commitActive()
+  const hasActiveInput = activeName.value.trim() !== '' || activeAmount.value.trim() !== ''
+  if (!commitActive({ requireComplete: true }) && hasActiveInput) {
+    return
+  }
 
   activeName.value = preset.name
   activeCategory.value = preset.category
@@ -176,12 +186,11 @@ async function addFromPreset(preset: CommittedPreset) {
 /**
  * Moves the open line into the settled list when it holds a complete entry.
  *
- * Silent about a blank line (nothing was asked for) and about a name with no
- * amount yet (the person is mid-entry — Login.vue's comment puts it well:
- * this product does not do punitive). It only speaks up for an amount with no
- * name, which cannot be saved and would otherwise vanish without explanation.
+ * Silent about a blank line (nothing was asked for). While the person is still
+ * typing, a missing amount stays quiet; actions that would replace the line or
+ * leave onboarding opt into complete validation so partial work cannot vanish.
  */
-function commitActive(): boolean {
+function commitActive({ requireComplete = false }: { requireComplete?: boolean } = {}): boolean {
   const name = activeName.value.trim()
   const amount = Number.parseFloat(activeAmount.value)
   const hasAmount = Number.isFinite(amount) && amount > 0
@@ -197,6 +206,9 @@ function commitActive(): boolean {
   }
 
   if (!hasAmount) {
+    if (requireComplete) {
+      activeError.value = 'How much is this one?'
+    }
     return false
   }
 
@@ -208,7 +220,7 @@ function commitActive(): boolean {
       frequency: activeFrequency.value,
       category: activeCategory.value,
     },
-    saved: false,
+    savedId: null,
   })
 
   activeError.value = ''
@@ -216,8 +228,28 @@ function commitActive(): boolean {
   return true
 }
 
-function remove(key: number) {
-  settled.value = settled.value.filter((row) => row.key !== key)
+async function remove(row: SettledRow) {
+  if (saving.value) return
+
+  // Any successful removal supersedes an earlier partial-save error. Clear it
+  // before both the local-only and server-backed paths so the message cannot
+  // describe a row that is no longer waiting to be saved.
+  errorMessage.value = ''
+
+  if (!row.savedId) {
+    settled.value = settled.value.filter((candidate) => candidate.key !== row.key)
+    return
+  }
+
+  saving.value = true
+  try {
+    await deleteCommittedExpense(row.savedId)
+    settled.value = settled.value.filter((candidate) => candidate.key !== row.key)
+  } catch {
+    errorMessage.value = `Couldn't remove ${row.draft.name} — try again?`
+  } finally {
+    saving.value = false
+  }
 }
 
 async function finish() {
@@ -226,7 +258,7 @@ async function finish() {
   }
 
   // A part-typed line at submit time counts as intent to include it.
-  commitActive()
+  commitActive({ requireComplete: true })
   if (activeError.value) {
     return
   }
@@ -242,7 +274,7 @@ async function finish() {
     return
   }
 
-  const unsaved = settled.value.filter((row) => !row.saved)
+  const unsaved = settled.value.filter((row) => !row.savedId)
   if (unsaved.length === 0) {
     committedStore.setHasAny(true)
     await router.push('/')
@@ -255,7 +287,7 @@ async function finish() {
   )
   results.forEach((result, index) => {
     if (result.status === 'fulfilled') {
-      unsaved[index].saved = true
+      unsaved[index].savedId = result.value.id
     }
   })
 
@@ -382,6 +414,8 @@ async function finish() {
 }
 
 .onboarding__field {
+  width: 100%;
+  min-width: 0;
   min-height: 44px;
   padding: 0 var(--space-sm);
   color: rgb(var(--v-theme-on-background));

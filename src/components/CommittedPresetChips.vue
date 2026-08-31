@@ -12,6 +12,7 @@
         class="lune-chip lune-button"
         :class="{ 'lune-chip--used': isUsed(preset.name) }"
         :aria-pressed="isUsed(preset.name)"
+        :disabled="disabled"
         @click="$emit('pick', preset)"
       >
         {{ preset.name }}
@@ -23,11 +24,15 @@
 <script setup lang="ts">
 import { COMMITTED_PRESETS, type CommittedPreset } from '../services/committedExpenses'
 
-const props = defineProps<{
-  /** Names already on the list, matched case-insensitively so a typed
-   *  "rent" still marks the Rent chip as used. */
-  usedNames: string[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** Names already on the list, matched case-insensitively so a typed
+     *  "rent" still marks the Rent chip as used. */
+    usedNames: string[]
+    disabled?: boolean
+  }>(),
+  { disabled: false },
+)
 
 defineEmits<{ pick: [preset: CommittedPreset] }>()
 
@@ -78,6 +83,11 @@ function isUsed(name: string): boolean {
 .lune-chip:focus-visible {
   outline: 2px solid rgb(var(--v-theme-primary));
   outline-offset: 2px;
+}
+
+.lune-chip:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 
 /* Already on the list. Kept enabled — tapping again is a reasonable way to add
