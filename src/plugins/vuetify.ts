@@ -83,6 +83,10 @@ export default createVuetify({
   },
   defaults: {
     VTextField: { rounded: 'md', variant: 'outlined' },
+    // Matches VTextField deliberately. Without this VSelect falls back to
+    // Vuetify's `filled`, so a row mixing the two renders one field outlined
+    // and the next filled — visible inconsistency inside a single component.
+    VSelect: { rounded: 'md', variant: 'outlined' },
     VBtn: { rounded: 'md', variant: 'flat' },
     VCard: { rounded: 'md' },
   },

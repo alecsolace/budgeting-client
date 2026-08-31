@@ -22,3 +22,70 @@
   --duration-medium: 325ms;
   --duration-long: 550ms;
 }
+
+/* Colour aliases for everything declared under `theme.variables` in
+ * plugins/vuetify.ts.
+ *
+ * Vuetify emits `theme.colors` as `--v-theme-<key>` but `theme.variables` as
+ * `--v-<key>`, and in BOTH cases the value is a bare RGB triplet, not a colour:
+ *
+ *   --v-text-muted: 115, 99, 83
+ *
+ * So `color: var(--v-text-muted)` computes to `color: 115, 99, 83`, which is
+ * invalid and silently dropped. That is not a hypothetical — it shipped, and it
+ * is why the app had no muted-text hierarchy, no dashed add-row borders, an
+ * invisible boot skeleton, and near-black input outlines despite two commits
+ * that measured and pinned the intended contrast.
+ *
+ * Wrapping the triplet here, once, means call sites read `var(--lune-border)`
+ * and cannot be written wrong. The hex values stay in vuetify.ts, where
+ * theme.spec.ts asserts their WCAG ratios — this file deliberately introduces
+ * no second source of truth.
+ *
+ * The selector list matters. Vuetify emits these onto `:root` for the ACTIVE
+ * theme and onto `.v-theme--<name>` for every theme, so repeating the
+ * declarations per theme class lets a nested theme island (`<v-card
+ * theme="luneDark">`) re-resolve them against its own scope rather than
+ * inheriting the page-level theme's colours.
+ */
+:root,
+.v-theme--luneLight,
+.v-theme--luneDark {
+  --lune-text-muted: rgb(var(--v-text-muted));
+  --lune-border: rgb(var(--v-border));
+  --lune-border-strong: rgb(var(--v-border-strong));
+  --lune-border-input: rgb(var(--v-border-input));
+  --lune-surface-raised: rgb(var(--v-surface-raised));
+  --lune-committed: rgb(var(--v-committed));
+  --lune-committed-soft: rgb(var(--v-committed-soft));
+  --lune-accent-soft: rgb(var(--v-accent-soft));
+  --lune-error-soft: rgb(var(--v-error-soft));
+}
+
+/* Vuetify sets Roboto on `html` and on its own utility classes, and our
+ * typography scale only reaches elements carrying a `.text-*` class. Without
+ * this, every input, select, select-menu item and button label renders in
+ * Roboto — form controls in the one product whose stated differentiation is
+ * its typography.
+ *
+ * `.v-overlay-container` is not decorative: VSelect menus portal out of the
+ * app root into it, so they miss a rule scoped to `.v-application` alone.
+ */
+html,
+.v-application,
+.v-overlay-container {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+}
+
+/* Honour the OS setting by collapsing the duration scale rather than blanket
+ * `animation: none`, so transitions still fire (and any transitionend handler
+ * still runs) — they just complete instantly.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-micro: 0ms;
+    --duration-short: 0ms;
+    --duration-medium: 0ms;
+    --duration-long: 0ms;
+  }
+}

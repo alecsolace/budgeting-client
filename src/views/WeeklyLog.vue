@@ -28,13 +28,13 @@ import { RouterLink } from 'vue-router'
   align-items: center;
   justify-content: space-between;
   padding-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--v-border, #e2d9cc);
+  border-bottom: 1px solid var(--lune-border);
 }
 
 .weekly-log__section-title,
 .weekly-log__edit {
   font-size: 11px;
-  color: var(--v-text-muted);
+  color: var(--lune-text-muted);
 }
 
 .weekly-log__section-title {

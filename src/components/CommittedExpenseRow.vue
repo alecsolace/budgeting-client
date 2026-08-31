@@ -141,37 +141,57 @@ function formatCurrency(value: number): string {
   padding: var(--space-sm) 0;
 }
 
+/* Mobile-first: stacked name, then amount/frequency/category two-up.
+ *
+ * The previous `@media (max-width: 640px)` never meaningfully engaged — the
+ * breakpoint equalled the container's own max-width, so the five-column desktop
+ * grid applied at essentially every viewport and squeezed each select into
+ * ~110px inside 608px of content. DESIGN.md asks for comfortable density; that
+ * layout compressed width instead of height to get it.
+ */
 .committed-row__fields {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: 1fr 1fr;
   gap: var(--space-sm);
   align-items: start;
+}
+
+.committed-row__name {
+  grid-column: 1 / -1;
+}
+
+.committed-row__delete {
+  grid-column: 2;
+  justify-self: end;
 }
 
 .committed-row__weekly {
   margin: var(--space-2xs) 0 0;
   padding-left: var(--space-sm);
   font-size: 11px;
-  color: var(--v-text-muted);
+  color: var(--lune-text-muted);
 }
 
 .committed-row__delete {
   margin-top: var(--space-2xs);
-  color: var(--v-text-muted);
+  color: var(--lune-text-muted);
 }
 
-@media (max-width: 640px) {
+/* Above the 640px document width there is finally room for one row on one
+ * line, so opt into it rather than out of it.
+ */
+@media (min-width: 700px) {
   .committed-row__fields {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
   }
 
   .committed-row__name {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 
   .committed-row__delete {
-    grid-column: 2;
-    justify-self: end;
+    grid-column: auto;
+    justify-self: auto;
   }
 }
 </style>

@@ -17,7 +17,7 @@
           <v-btn
             variant="text"
             size="small"
-            class="text-button lune-account__signout"
+            class="lune-button lune-account__signout"
             @click="handleSignOut"
           >
             Sign out
@@ -97,7 +97,7 @@ async function handleSignOut() {
 
 .lune-boot__line {
   border-radius: var(--radius-sm);
-  background-color: var(--v-border);
+  background-color: var(--lune-border);
   opacity: 0.5;
 }
 
@@ -115,7 +115,7 @@ async function handleSignOut() {
 .lune-boot__field {
   height: 52px;
   margin-top: var(--space-xl);
-  border: 1px solid var(--v-border);
+  border: 1px solid var(--lune-border);
   border-radius: var(--radius-md);
   opacity: 0.5;
 }
@@ -124,7 +124,7 @@ async function handleSignOut() {
   height: 44px;
   margin-top: var(--space-md);
   border-radius: var(--radius-md);
-  background-color: var(--v-border);
+  background-color: var(--lune-border);
   opacity: 0.5;
 }
 
@@ -138,7 +138,7 @@ async function handleSignOut() {
 
 .lune-account__signout {
   min-height: 44px;
-  color: var(--v-text-muted);
+  color: var(--lune-text-muted);
   text-transform: none;
   letter-spacing: 0.01em;
 }

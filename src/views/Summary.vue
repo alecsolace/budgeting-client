@@ -16,6 +16,6 @@
 
 .lune-stub__copy {
   margin-top: var(--space-md);
-  color: var(--v-text-muted);
+  color: var(--lune-text-muted);
 }
 </style>

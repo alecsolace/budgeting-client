@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      # Run every verification command even when an earlier one fails, then
+      # aggregate their outcomes so one problem never hides another.
+      - id: typecheck
+        name: Type check
+        continue-on-error: true
+        run: npx vue-tsc --noEmit
+
+      - id: lint
+        name: Lint
+        continue-on-error: true
+        run: npm run lint
+
+      - id: test
+        name: Test
+        continue-on-error: true
+        run: npm run test
+
+      # The CSP meta tag is injected at build time only (see vite.config.ts),
+      # so a build is the only place a policy regression can surface.
+      - id: build
+        name: Build
+        continue-on-error: true
+        run: npm run build
+
+      - name: Report verification result
+        if: always()
+        env:
+          TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          TEST_OUTCOME: ${{ steps.test.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+        run: |
+          failed=0
+          for outcome in "$TYPECHECK_OUTCOME" "$LINT_OUTCOME" "$TEST_OUTCOME" "$BUILD_OUTCOME"; do
+            if [ "$outcome" != "success" ]; then
+              failed=1
+            fi
+          done
+          exit "$failed"
